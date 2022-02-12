@@ -45,7 +45,10 @@ class TwoLayerNet(object):
         # weights and biases using the keys 'W1' and 'b1' and second layer weights #
         # and biases using the keys 'W2' and 'b2'.                                 #
         ############################################################################
-        pass
+        self.params['W1'] = np.random.normal(0, weight_scale, (input_dim, hidden_dim))
+        self.params['W2'] = np.random.normal(0, weight_scale, (hidden_dim, 1))
+        self.params['b1'] = np.zeros((1, hidden_dim))
+        self.params['b2'] = np.zeros((1,1))
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -74,7 +77,8 @@ class TwoLayerNet(object):
         # TODO: Implement the forward pass for the two-layer net, computing the    #
         # class scores for X and storing them in the scores variable.              #
         ############################################################################
-        pass
+        scores, cache_1 = affine_relu_forward(X, self.params['W1'], self.params['b1'])
+        scores, cache_2 = affine_forward(scores, self.params['W2'], self.params['b2'])      
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -95,7 +99,17 @@ class TwoLayerNet(object):
         # automated tests, make sure that your L2 regularization includes a factor #
         # of 0.5 to simplify the expression for the gradient.                      #
         ############################################################################
-        pass
+        loss, dx = softmax_loss(scores, y)
+        reg_loss = np.linalg.norm(self.params['W1'], 'fro') ** 2 + \
+                   np.linalg.norm(self.params['W2'], 'fro') ** 2
+        loss += 0.5 * self.reg * reg_loss
+        
+        dx, dw2, db2 = affine_backward(dx, cache_2)
+        grads['W2'] = dw2 + self.reg * cache_2[1]
+        grads['b2'] = db2
+        dx, dw1, db1 = affine_relu_backward(dx, cache_1)
+        grads['W1'] = dw1 + self.reg * cache_1[0][1]
+        grads['b1'] = db1
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
