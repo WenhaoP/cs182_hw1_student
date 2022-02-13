@@ -148,8 +148,8 @@ def adam(x, dx, config=None):
     config['m'] = m    
     v = config['beta2'] * config['v'] + (1 - config['beta2']) * (dx ** 2)
     config['v'] = v
-    m_correct = m / (1 - config['beta1'])
-    v_correct = v / (1 - config['beta2'])
+    m_correct = m / (1 - config['beta1'] ** config['t'])
+    v_correct = v / (1 - config['beta2'] ** config['t'])
     next_x = x - config['learning_rate'] * m_correct / (np.sqrt(v_correct) + config['epsilon']) 
     #############################################################################
     #                             END OF YOUR CODE                              #
