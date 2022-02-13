@@ -104,10 +104,9 @@ def rmsprop(x, dx, config=None):
     decay = config['decay_rate']
     cache = config['cache']
     epsilon = config['epsilon']
-    decay = decay * cache + (1 - decay) * (dx ** 2)
-    next_x = x - alpha / np.sqrt(cache + epsilon) * dx
-    
-    config['cache']
+    cache = decay * cache + (1 - decay) * (dx ** 2)
+    next_x = x - alpha / np.sqrt(cache + epsilon) * dx  
+    config['cache'] = cache
     #############################################################################
     #                             END OF YOUR CODE                              #
     #############################################################################
@@ -144,7 +143,14 @@ def adam(x, dx, config=None):
     # the next_x variable. Don't forget to update the m, v, and t variables     #
     # stored in config and to use the epsilon scalar to avoid dividing by zero. #
     #############################################################################
-    pass
+    config['t'] = config['t'] + 1
+    m = config['beta1'] * config['m'] + (1 - config['beta1']) * dx
+    config['m'] = m    
+    v = config['beta2'] * config['v'] + (1 - config['beta2']) * (dx ** 2)
+    config['v'] = v
+    m_correct = m / (1 - config['beta1'])
+    v_correct = v / (1 - config['beta2'])
+    next_x = x - config['learning_rate'] * m_correct / (np.sqrt(v_correct) + config['epsilon']) 
     #############################################################################
     #                             END OF YOUR CODE                              #
     #############################################################################
