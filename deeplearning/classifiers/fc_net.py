@@ -268,8 +268,15 @@ class FullyConnectedNet(object):
                 beta = self.params['beta{}'.format(layer_idx)]
             
             # forward pass
-            if self.use_batchnorm:
-                scores, cache = affine_relu_bn_forward(scores, W, b, gamma, beta, self.bn_params[i])
+            if self.use_batchnorm and self.use_dropout:
+                scores, cache = affine_relu_bn_do_forward(scores, W, b, gamma, beta,
+                                                          self.bn_params[i], self.dropout_param)
+            elif self.use_batchnorm:
+                scores, cache = affine_relu_bn_forward(scores, W, b, gamma, beta,
+                                                       self.bn_params[i])
+            elif self.use_dropout:
+                scores, cache = affine_relu_do_forward(scores, W, b,
+                                                       self.dropout_param)
             else:
                 scores, cache = affine_relu_forward(scores, W, b)
             caches['layer{}'.format(layer_idx)] = cache
@@ -323,17 +330,29 @@ class FullyConnectedNet(object):
         for i in range(self.num_layers - 1, 0, -1):
 
             cache = caches['layer{}'.format(i)]
-            if self.use_batchnorm:
-                dx, dw, db, dgamma, dbeta = affine_relu_bn_backward(dx, cache)
+            if self.use_batchnorm and self.use_dropout:
+                dx, dw, db, dgamma, dbeta = affine_relu_bn_do_backward(dx, cache)
                 grads['gamma{}'.format(i)] = dgamma
                 grads['beta{}'.format(i)] = dbeta
+                w = cache[0][1]  
+                grads['W{}'.format(i)] = dw + self.reg * w
+            elif self.use_batchnorm:
+                dx, dw, db, dgamma, dbeta = affine_relu_bn_backward(dx, cache)
+                grads['gamma{}'.format(i)] = dgamma
+                grads['beta{}'.format(i)] = dbeta    
+                w = cache[0][1]
+                grads['W{}'.format(i)] = dw + self.reg * w
+            elif self.use_dropout:
+                dx, dw, db = affine_relu_do_backward(dx, cache)
+                w = cache[0][0][1]  
+                grads['W{}'.format(i)] = dw + self.reg * w       
             else:
                 dx, dw, db = affine_relu_backward(dx, cache)
-            
-            grads['W{}'.format(i)] = dw + self.reg * cache[0][1]
-            grads['b{}'.format(i)] = db 
-            
+                w = cache[0][1]
+                grads['W{}'.format(i)] = dw + self.reg * w
 
+            
+            grads['b{}'.format(i)] = db 
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
