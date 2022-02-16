@@ -508,7 +508,22 @@ def max_pool_forward_naive(x, pool_param):
     #############################################################################
     # TODO: Implement the max pooling forward pass                              #
     #############################################################################
-    pass
+    N, C, H, W = x.shape
+    HH = pool_param['pool_height']
+    WW = pool_param['pool_width']
+    stride = pool_param['stride']
+    out_H = 1 + (H - HH) // stride
+    out_W = 1 + (W - WW) // stride
+    
+    
+    out = np.zeros((N, C, out_H, out_W))
+    for i in range(N):
+        for j in range(C):
+            for m in range(0, out_H):
+                for n in range(0, out_W):
+                    out[i, j, m, n] = np.max(x[i, j, m * stride:m * stride+HH, n*stride:n*stride+WW])
+            
+    
     #############################################################################
     #                             END OF YOUR CODE                              #
     #############################################################################
@@ -531,7 +546,28 @@ def max_pool_backward_naive(dout, cache):
     #############################################################################
     # TODO: Implement the max pooling backward pass                             #
     #############################################################################
-    pass
+    x, pool_param = cache
+    N, C, H, W = x.shape
+    HH = pool_param['pool_height']
+    WW = pool_param['pool_width']
+    stride = pool_param['stride']
+    out_H = 1 + (H - HH) // stride
+    out_W = 1 + (W - WW) // stride
+    
+    
+    # compute dx
+    dx = np.zeros(x.shape)
+    for i in range(N):
+        for j in range(C):
+            for k in range(0, out_H):
+                for l in range(0, out_W):
+                    x_window = x[i, j, k * stride:k * stride + HH, l * stride:l * stride + WW]
+                    max_idx = np.unravel_index(np.argmax(x_window, axis=None), x_window.shape)
+                    dx[i, j, max_idx[0] + k * stride, max_idx[1] + l * stride] = dout[i,j,k,l] 
+ 
+    
+    
+    
     #############################################################################
     #                             END OF YOUR CODE                              #
     #############################################################################
