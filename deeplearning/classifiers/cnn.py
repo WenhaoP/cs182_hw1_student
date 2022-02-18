@@ -47,7 +47,21 @@ class ThreeLayerConvNet(object):
         # hidden affine layer, and keys 'W3' and 'b3' for the weights and biases   #
         # of the output affine layer.                                              #
         ############################################################################
-        pass
+        self.conv_param = {'stride': 1, 'pad': (filter_size - 1) // 2}
+        self.pool_param = {'pool_height': 2, 'pool_width': 2, 'stride': 2}
+        out_H = 1 + int((input_dim[1] + 2 * self.conv_param['pad'] - filter_size) / self.conv_param['stride']) # after conv
+        out_W = 1 + int((input_dim[2] + 2 * self.conv_param['pad'] - filter_size) / self.conv_param['stride']) # after conv
+        
+        out_H = 1 + int((out_H - self.pool_param['pool_height']) / self.pool_param['stride']) # after max pool
+        out_W = 1 + int((out_W - self.pool_param['pool_height']) / self.pool_param['stride']) # after max pool
+        self.params['W1'] = np.random.normal(0, weight_scale, (num_filters, input_dim[0], filter_size, filter_size))
+        self.params['W2'] = np.random.normal(0, weight_scale, (num_filters * out_H * out_W, hidden_dim))
+        self.params['W3'] = np.random.normal(0, weight_scale, (hidden_dim, num_classes))
+        
+        self.params['b1'] = np.zeros((1, num_filters))
+        self.params['b2'] = np.zeros((1, hidden_dim))
+        self.params['b3'] = np.zeros((1, num_classes))
+        
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -67,10 +81,12 @@ class ThreeLayerConvNet(object):
 
         # pass conv_param to the forward pass for the convolutional layer
         filter_size = W1.shape[2]
-        conv_param = {'stride': 1, 'pad': (filter_size - 1) // 2}
+        #conv_param = {'stride': 1, 'pad': (filter_size - 1) // 2}
+        conv_param = self.conv_param
 
         # pass pool_param to the forward pass for the max-pooling layer
-        pool_param = {'pool_height': 2, 'pool_width': 2, 'stride': 2}
+        #pool_param = {'pool_height': 2, 'pool_width': 2, 'stride': 2}
+        pool_param = self.pool_param
 
         scores = None
         ############################################################################
@@ -78,7 +94,9 @@ class ThreeLayerConvNet(object):
         # computing the class scores for X and storing them in the scores          #
         # variable.                                                                #
         ############################################################################
-        pass
+        scores, cache_1 = conv_relu_pool_forward(X, W1, b1, conv_param, pool_param)
+        scores, cache_2 = affine_relu_forward(scores, W2, b2)
+        scores, cache_3 = affine_forward(scores, W3, b3)
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -93,7 +111,19 @@ class ThreeLayerConvNet(object):
         # data loss using softmax, and make sure that grads[k] holds the gradients #
         # for self.params[k]. Don't forget to add L2 regularization!               #
         ############################################################################
-        pass
+        loss, dx = softmax_loss(scores, y)
+        reg_loss = np.sum(W1**2) + np.sum(W2**2) + np.sum(W3**2)
+        loss += 0.5 * self.reg * reg_loss
+        
+        dx, dw3, db3 = affine_backward(dx, cache_3)
+        grads['W3'] = dw3 + self.reg * cache_3[1]
+        grads['b3'] = db3
+        dx, dw2, db2 = affine_relu_backward(dx, cache_2)
+        grads['W2'] = dw2 + self.reg * cache_2[0][1]
+        grads['b2'] = db2
+        dx, dw1, db1 = conv_relu_pool_backward(dx, cache_1)
+        grads['W1'] = dw1 + self.reg * cache_1[0][1]
+        grads['b1'] = db1
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################

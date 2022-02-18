@@ -336,11 +336,8 @@ def dropout_forward(x, dropout_param):
         # TODO: Implement the training phase forward pass for inverted dropout.   #
         # Store the dropout mask in the mask variable.                            #
         ###########################################################################
-        mask = np.random.binomial(1, p, x.shape)
-        out = x.copy()
-        out[mask == 1] = 0
-        
-        dropout_param['mask'] = mask
+        mask = np.random.binomial(1, 1 - p, x.shape) / (1-p)
+        out = x * mask
         ###########################################################################
         #                            END OF YOUR CODE                             #
         ###########################################################################
@@ -369,8 +366,8 @@ def dropout_backward(dout, cache):
         ###########################################################################
         # TODO: Implement the training phase backward pass for inverted dropout.  #
         ###########################################################################
-        dx = dout
-        dx[cache[1] == 1] = 0
+        dx = dout * mask
+        #dx *= 1 / (1 - dropout_param['p'])
         ###########################################################################
         #                            END OF YOUR CODE                             #
         ###########################################################################
@@ -456,20 +453,25 @@ def conv_backward_naive(dout, cache):
     pad = conv_param['pad']
     out_H = 1 + (H + 2 * pad - HH) // stride
     out_W = 1 + (W + 2 * pad - WW) // stride  
-    
-    # compute dx
+
+    # compute dx (most naive version, too slow)
     dx = np.zeros((F, N, C, H, W))
-    for i in range(N):
-        for j in range(C):
-            for n in range(F):
-                dout_pad = np.pad(dout[i, n], ((pad, pad), (pad, pad)))
-                for k in range(0, H):
-                    for l in range(0, W):
-                        dx[n, i, j, k, l] = np.sum(
-                            dout_pad[k * stride:k * stride + HH, l * stride:l * stride + WW] * np.rot90(w[n, j], 2))
-    dx = np.sum(dx, axis=0)
-    
-    
+    dx = np.pad(dx, ((0, 0), (0, 0), (0, 0), (pad, pad), (pad, pad)))
+    for f in range(F):
+        for n in range(N):
+            for c in range(C):
+                for i in range(H+2*pad):
+                    for j in range(W+2*pad):
+                        for a in range(out_H):
+                            for b in range(out_W):
+                                if (i-a*stride < 0) or (j-b*stride < 0) or (i-a*stride>=HH) or (j-b*stride>=WW):
+                                    dx[f, n, c, i, j] += 0
+                                else:
+                                    dx[f, n, c, i, j] += w[f, c, i-a*stride, j-b*stride] * dout[n, f, a, b]
+
+    dx = np.sum(dx, axis = 0)
+    dx = dx[:,:,pad:-pad,pad:-pad]
+
     # compute dw
     dw = np.zeros((N, F, C, HH, WW))
     for i in range(F):
@@ -605,7 +607,14 @@ def spatial_batchnorm_forward(x, gamma, beta, bn_param):
     # version of batch normalization defined above. Your implementation should  #
     # be very short; ours is less than five lines.                              #
     #############################################################################
-    pass
+    new_x = np.transpose(x, axes=(1, 0, 2, 3))
+    old_shape = new_x.shape
+    new_x = np.reshape(new_x, (new_x.shape[0], -1))
+    new_x = np.transpose(new_x)
+    out, cache = batchnorm_forward(new_x, gamma, beta, bn_param)
+    out = np.transpose(out)
+    out = np.reshape(out, old_shape)
+    out = np.transpose(out, axes=(1,0,2,3))
     #############################################################################
     #                             END OF YOUR CODE                              #
     #############################################################################
@@ -635,7 +644,14 @@ def spatial_batchnorm_backward(dout, cache):
     # version of batch normalization defined above. Your implementation should  #
     # be very short; ours is less than five lines.                              #
     #############################################################################
-    pass
+    new_dout = np.transpose(dout, axes=(1, 0, 2, 3))
+    old_shape = new_dout.shape
+    new_dout = np.reshape(new_dout, (new_dout.shape[0], -1))
+    new_dout = np.transpose(new_dout)
+    dx, dgamma, dbeta = batchnorm_backward(new_dout, cache)
+    dx = np.transpose(dx)
+    dx = np.reshape(dx, old_shape)
+    dx = np.transpose(dx, axes=(1,0,2,3))
     #############################################################################
     #                             END OF YOUR CODE                              #
     #############################################################################
@@ -687,8 +703,8 @@ def softmax_loss(x, y):
     probs = np.exp(x - np.max(x, axis=1, keepdims=True))
     probs /= np.sum(probs, axis=1, keepdims=True)
     N = x.shape[0]
-    loss = -np.sum(np.log(probs[np.arange(N), y])) / N
-    #loss = -np.sum(np.log(np.max(probs[np.arange(N), y], 1e-10))) / N
+    #loss = -np.sum(np.log(probs[np.arange(N), y])) / N
+    loss = -np.sum(np.log(np.maximum(probs[np.arange(N), y], 1e-10))) / N
     dx = probs.copy()
     dx[np.arange(N), y] -= 1
     dx /= N
